@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"os"
 	"strings"
+	"unicode"
 )
 
 const maxRounds = 6
@@ -22,6 +23,7 @@ const (
 	Miss Score = iota
 	Present
 	Hit
+	Unknown = -1
 )
 
 type LetterResult struct {
@@ -34,7 +36,7 @@ func pickAnswer() string {
 	return wordList[rand.Intn(len(wordList))]
 }
 
-func scoreGuess(answer, guess string) []LetterResult {
+func scoreGuess(answer, guess string, letterStates map[rune]Score) []LetterResult {
 	res := make([]LetterResult, 5)
 	answerCounts := make(map[byte]int)
 
@@ -59,18 +61,26 @@ func scoreGuess(answer, guess string) []LetterResult {
 			res[i] = LetterResult{Char: rune(guess[i]), Score: Miss}
 		}
 	}
+
+	// Update letterStates
+	for _, r := range res {
+		existing, ok := letterStates[unicode.ToUpper(r.Char)]
+		if !ok || r.Score > existing {
+			letterStates[unicode.ToUpper(r.Char)] = r.Score
+		}
+	}
 	return res
 }
 
-func printGuessResult(guess string, result []LetterResult) {
+func printGuessResult(result []LetterResult) {
 	for _, r := range result {
 		switch r.Score {
 		case Hit:
-			fmt.Printf("\033[1;32m%c\033[0m", r.Char) // green
+			fmt.Printf("\033[1;32m%c\033[0m", unicode.ToUpper(r.Char)) // green
 		case Present:
-			fmt.Printf("\033[1;33m%c\033[0m", r.Char) // yellow
+			fmt.Printf("\033[1;33m%c\033[0m", unicode.ToUpper(r.Char)) // yellow
 		case Miss:
-			fmt.Printf("\033[1;37m%c\033[0m", r.Char) // grey
+			fmt.Printf("\033[1;90m%c\033[0m", unicode.ToUpper(r.Char)) // dim grey
 		}
 	}
 	fmt.Println()
@@ -81,8 +91,20 @@ func main() {
 	scanner := bufio.NewScanner(os.Stdin)
 	fmt.Println("Welcome to Wordle CLI!")
 
+	letterStates := make(map[rune]Score)
+	for r := 'A'; r <= 'Z'; r++ {
+		letterStates[r] = Unknown
+	}
+
+	var history [][]LetterResult
+
 	for round := 1; round <= maxRounds; round++ {
 		fmt.Printf("\nRound %d/%d\n", round, maxRounds)
+
+		for _, past := range history {
+			printGuessResult(past)
+		}
+
 		fmt.Print("Enter a 5-letter word: ")
 		scanner.Scan()
 		guess := strings.ToLower(strings.TrimSpace(scanner.Text()))
@@ -93,8 +115,8 @@ func main() {
 			continue
 		}
 
-		result := scoreGuess(answer, guess)
-		printGuessResult(guess, result)
+		result := scoreGuess(answer, guess, letterStates)
+		history = append(history, result)
 
 		correct := true
 		for _, r := range result {
