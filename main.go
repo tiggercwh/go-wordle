@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"math/rand"
 	"os"
 	"strings"
 	"unicode"
@@ -12,11 +11,10 @@ import (
 const maxRounds = 6
 
 var wordList = []string{
-	"crane", "slate", "fling", "grasp", "thing",
-	"blame", "pride", "slope", "drink", "plant",
+	"hello", "world", "quite", "fancy", "fresh",
+	"panic", "crazy", "buggy",
 }
 
-// LetterScore represents result for a letter
 type Score int
 
 const (
@@ -31,12 +29,13 @@ type LetterResult struct {
 	Score Score
 }
 
-func pickAnswer() string {
-	// New(NewSource(seed))
-	return wordList[rand.Intn(len(wordList))]
+type FeedbackKey struct {
+	GroupResult [5]int
+	Hits        int
+	Presents    int
 }
 
-func scoreGuess(answer, guess string, letterStates map[rune]Score) []LetterResult {
+func scoreGuess(answer, guess string) []LetterResult {
 	res := make([]LetterResult, 5)
 	answerCounts := make(map[byte]int)
 
@@ -62,14 +61,24 @@ func scoreGuess(answer, guess string, letterStates map[rune]Score) []LetterResul
 		}
 	}
 
-	// Update letterStates
-	for _, r := range res {
-		existing, ok := letterStates[unicode.ToUpper(r.Char)]
-		if !ok || r.Score > existing {
-			letterStates[unicode.ToUpper(r.Char)] = r.Score
+	return res
+}
+
+func summarizeResult(result []LetterResult) FeedbackKey {
+	var key FeedbackKey
+	for i, r := range result {
+		switch r.Score {
+		case Hit:
+			key.GroupResult[i] = 2
+			key.Hits++
+		case Present:
+			key.GroupResult[i] = 1
+			key.Presents++
+		case Miss:
+			key.GroupResult[i] = 0
 		}
 	}
-	return res
+	return key
 }
 
 func printGuessResult(result []LetterResult) {
@@ -87,14 +96,11 @@ func printGuessResult(result []LetterResult) {
 }
 
 func main() {
-	answer := pickAnswer()
 	scanner := bufio.NewScanner(os.Stdin)
 	fmt.Println("Welcome to Wordle CLI!")
 
-	letterStates := make(map[rune]Score)
-	for r := 'A'; r <= 'Z'; r++ {
-		letterStates[r] = Unknown
-	}
+	candidates := make([]string, len(wordList))
+	copy(candidates, wordList)
 
 	var history [][]LetterResult
 
@@ -115,13 +121,38 @@ func main() {
 			continue
 		}
 
-		result := scoreGuess(answer, guess, letterStates)
-		history = append(history, result)
+		// Group words with same feedback
+		grouped := make(map[FeedbackKey][]string)
+		resultMap := make(map[FeedbackKey][]LetterResult)
 
-		if answer == guess {
+		for _, cand := range candidates {
+			result := scoreGuess(cand, guess)
+			fb := summarizeResult(result)
+			grouped[fb] = append(grouped[fb], cand)
+			resultMap[fb] = result
+		}
+
+		// Choose least helpful feedback
+		var bestFB FeedbackKey
+		bestScore := [2]int{6, 6}
+
+		for fb := range grouped {
+			if fb.Hits < bestScore[0] || (fb.Hits == bestScore[0] && fb.Presents < bestScore[1]) {
+				bestFB = fb
+				bestScore = [2]int{fb.Hits, fb.Presents}
+			}
+		}
+
+		candidates = grouped[bestFB]
+		result := resultMap[bestFB]
+		history = append(history, result)
+		printGuessResult(result)
+
+		if len(candidates) == 1 && guess == candidates[0] {
 			fmt.Println("Congratulations! You guessed the word.")
 			return
 		}
 	}
-	fmt.Printf("Game over! The word was: %s\n", answer)
+
+	fmt.Printf("Game over! The word was: %s\n", candidates[0])
 }
