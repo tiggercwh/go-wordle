@@ -118,14 +118,7 @@ func main() {
 		result := scoreGuess(answer, guess, letterStates)
 		history = append(history, result)
 
-		correct := true
-		for _, r := range result {
-			if r.Score != Hit {
-				correct = false
-				break
-			}
-		}
-		if correct {
+		if answer == guess {
 			fmt.Println("Congratulations! You guessed the word.")
 			return
 		}
