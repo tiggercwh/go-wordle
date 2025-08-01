@@ -91,6 +91,10 @@ Task 3 is the point where I want to safeguard the behaviour with test here, beca
 The main concern/objective when doing this task is to implement in a fairly flexible/scalable way so that it allows extension to task 4 (although we have not done it yet). It is always tricky to take the balance here especially in situations when initiative can change, if possible I do not want to develop in a way that commit too much in certain setup. (For example if I think that multiplayer is a must, I might have written websocket-related code in advance)
 I have also done some refactor here to share types and do the client and server separation.
 
+### 5. Summary and Afterthoughts
+
+The project ends up with a server-client setup which allows one to run locally only, and things would still change significantly if to proceeding to stage 4. Given the time limit I think this is a good point to wrap it up here instead of making a semi-finished multi-player version.
+
 ## Code Structure & Comments
 
 ### Key Functions in Server
@@ -114,6 +118,8 @@ Core Absurdle Logic
 
 ## Possible Future Enhancements
 
+- **Deployment Related Setup(envs etc.)**
+- **Game Menu in Cli**
 - **Multiplayer Support**
 - **Database Persistence**
 - **User Authentication**
