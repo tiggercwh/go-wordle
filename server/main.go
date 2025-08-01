@@ -17,11 +17,10 @@ import (
 	"github.com/tiggercwh/go-wordle/gameModel"
 )
 
-const maxRounds = 6
-
 var (
-	wordList     []string
-	wordListPath = flag.String("wordlist", "", "Path to a CSV file containing words (one per line)")
+	wordList      []string
+	wordListPath  = flag.String("wordlist", "", "Path to a CSV file containing words (one per line)")
+	maxRoundsFlag = flag.Int("rounds", 6, "Maximum number of rounds per game")
 )
 
 type GameServer struct {
@@ -39,7 +38,7 @@ func (gs *GameServer) createGame() *gameModel.GameState {
 	game := &gameModel.GameState{
 		ID:           generateGameID(),
 		Round:        0,
-		MaxRounds:    maxRounds,
+		MaxRounds:    *maxRoundsFlag,
 		History:      make([][]gameModel.LetterResult, 0),
 		Candidates:   make([]string, len(wordList)),
 		GameOver:     false,
@@ -206,7 +205,7 @@ func (gs *GameServer) handleGuess(w http.ResponseWriter, r *http.Request) {
 	game.Candidates = grouped[bestFB]
 	result := resultMap[bestFB]
 	game.History = append(game.History, result)
-	game.GameOver = game.Round >= maxRounds
+	game.GameOver = game.Round >= game.MaxRounds
 	if len(game.Candidates) == 1 && guess == game.Candidates[0] {
 		game.Won = true
 		game.GameOver = true

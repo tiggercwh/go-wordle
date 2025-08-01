@@ -82,7 +82,7 @@ func testGuess(server *GameServer, gameID string, word string, t *testing.T) []g
 	game.History = append(game.History, result)
 
 	// Check game over conditions
-	game.GameOver = game.Round >= maxRounds
+	game.GameOver = game.Round >= game.MaxRounds
 	if len(game.Candidates) == 1 && word == game.Candidates[0] {
 		game.Won = true
 		game.GameOver = true

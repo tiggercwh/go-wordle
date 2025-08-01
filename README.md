@@ -42,17 +42,28 @@ Progress: Task 1,2,3 Completion
 
    ```bash
    cd server
-   # Basic usage with default word list
+   # Basic usage with default settings
    go run main.go
 
-   # Or use a custom word list (CSV format, one word per line)
+   # Custom word list (CSV format, one word per line)
    # Only 5-letter words will be used
    go run main.go -wordlist=../wordlist.csv
+
+   # Custom number of rounds (default is 6)
+   go run main.go -rounds=8
+
+   # Combined options
+   go run main.go -wordlist=../wordlist.csv -rounds=10
    ```
 
    Server starts on `http://localhost:8080`
 
-   > **Note**: The word list should be a CSV file with one word per line. Only 5-letter words will be used. An example `wordlist.csv` is provided in the project root.
+   > **Note**:
+   >
+   > - The word list should be a CSV file with one word per line.
+   > - Only 5-letter words will be used.
+   > - An example `wordlist.csv` is provided in the project root.
+   > - The default number of rounds is 6, but can be customized with the `-rounds` flag.
 
 3. **Run Client** (in new terminal)
    ```bash

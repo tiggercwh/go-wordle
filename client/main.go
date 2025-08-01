@@ -14,7 +14,6 @@ import (
 	"github.com/tiggercwh/go-wordle/gameModel"
 )
 
-const maxRounds = 6
 const serverURL = "http://localhost:8080/api"
 
 func makeRequest(method, url string, body interface{}) ([]byte, error) {
@@ -110,8 +109,8 @@ func main() {
 	// fmt.Printf("Round %d/%d\n", gameState.Round, gameState.MaxRounds)
 
 	// Game loop
-	for round := 1; round <= maxRounds; round++ {
-		fmt.Printf("\nRound %d/%d\n", round, maxRounds)
+	for round := 1; round <= gameState.MaxRounds; round++ {
+		fmt.Printf("\nRound %d/%d\n", round, gameState.MaxRounds)
 
 		// Display history
 		for _, past := range gameState.History {
