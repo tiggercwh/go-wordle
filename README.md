@@ -60,21 +60,6 @@ Progress: Task 1,2,3 Completion
    go run main.go
    ```
 
-### Testing the API
-
-```bash
-# Create new game
-curl -X POST http://localhost:8080/api/game/new
-
-# Submit guess
-curl -X POST http://localhost:8080/api/game/GAME_ID/guess \
-  -H "Content-Type: application/json" \
-  -d '{"word": "hello"}'
-
-# Get game state
-curl http://localhost:8080/api/game/GAME_ID
-```
-
 ## Development Process & Considerations
 
 ### 1. Task sequence and priority
