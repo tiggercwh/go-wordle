@@ -27,7 +27,6 @@ A Wordle game implementation with server-client architecture, featuring true Abs
 ### Prerequisites
 
 - Go 1.24.5 or later
-- Network access for dependency downloads
 
 ### Quick Start
 
@@ -43,14 +42,14 @@ A Wordle game implementation with server-client architecture, featuring true Abs
    cd server
    # Basic usage with default word list
    go run main.go
-   
+
    # Or use a custom word list (CSV format, one word per line)
    # Only 5-letter words will be used
    go run main.go -wordlist=../wordlist.csv
    ```
 
    Server starts on `http://localhost:8080`
-   
+
    > **Note**: The word list should be a CSV file with one word per line. Only 5-letter words will be used. An example `wordlist.csv` is provided in the project root.
 
 3. **Run Client** (in new terminal)
