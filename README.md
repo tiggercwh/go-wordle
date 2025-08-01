@@ -1,6 +1,7 @@
-# Go Wordle - Server-Client Architecture
+# Go Wordle
 
 A Wordle game implementation with server-client architecture, featuring true Absurdle behavior where the answer dynamically changes based on player guesses.
+Progress: Task 1,2,3 Completion
 
 ## Architecture Overview
 
