@@ -1,10 +1,15 @@
 package main
 
 import (
+	"encoding/csv"
 	"encoding/json"
+	"flag"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
+	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -14,10 +19,10 @@ import (
 
 const maxRounds = 6
 
-var wordList = []string{
-	"hello", "world", "quite", "fancy", "fresh",
-	"panic", "crazy", "buggy",
-}
+var (
+	wordList     []string
+	wordListPath = flag.String("wordlist", "", "Path to a CSV file containing words (one per line)")
+)
 
 type GameServer struct {
 	games map[string]*gameModel.GameState
@@ -43,6 +48,7 @@ func (gs *GameServer) createGame() *gameModel.GameState {
 		LastActivity: time.Now().Format(time.RFC3339),
 	}
 	copy(game.Candidates, wordList)
+	fmt.Println("Created game with candidates: ", game.Candidates)
 	gs.mutex.Lock()
 	gs.games[game.ID] = game
 	gs.mutex.Unlock()
@@ -230,12 +236,80 @@ func (gs *GameServer) handleGetGame(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(game)
 }
 
+func loadWordList() error {
+	// Default word list (all 5 letters)
+	defaultWords := []string{
+		"hello", "world", "quite", "fancy", "fresh",
+		"panic", "crazy", "buggy",
+	}
+
+	if *wordListPath == "" {
+		wordList = defaultWords
+		return nil
+	}
+
+	file, err := os.Open(*wordListPath)
+	if err != nil {
+		return fmt.Errorf("failed to open word list file: %w", err)
+	}
+	defer file.Close()
+
+	// Use a map to track unique words
+	uniqueWords := make(map[string]bool)
+
+	// Add default words to ensure we always have some valid words
+	for _, word := range defaultWords {
+		uniqueWords[word] = true
+	}
+
+	// Read words from CSV
+	reader := csv.NewReader(file)
+	for {
+		record, err := reader.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("error reading CSV: %w", err)
+		}
+		for _, word := range record {
+			word = strings.TrimSpace(strings.ToLower(word))
+			// Only include 5-letter words
+			if len(word) == 5 {
+				uniqueWords[word] = true
+			}
+		}
+	}
+
+	// Convert map keys to slice
+	wordList = make([]string, 0, len(uniqueWords))
+	for word := range uniqueWords {
+		wordList = append(wordList, word)
+	}
+
+	if len(wordList) == 0 {
+		return fmt.Errorf("no valid 5-letter words found in the word list")
+	}
+
+	log.Printf("Loaded %d unique 5-letter words", len(wordList))
+
+	return nil
+}
+
 func main() {
-	server := NewGameServer()
-	router := mux.NewRouter()
-	router.HandleFunc("/api/game/new", server.handleNewGame).Methods("POST", "OPTIONS")
-	router.HandleFunc("/api/game/{gameID}/guess", server.handleGuess).Methods("POST", "OPTIONS")
-	router.HandleFunc("/api/game/{gameID}", server.handleGetGame).Methods("GET")
-	fmt.Println("Wordle server listening on http://localhost:8080")
-	log.Fatal(http.ListenAndServe(":8080", router))
+	flag.Parse()
+
+	if err := loadWordList(); err != nil {
+		log.Fatalf("Failed to load word list: %v", err)
+	}
+
+	r := mux.NewRouter()
+	gameServer := NewGameServer()
+
+	r.HandleFunc("/api/game/new", gameServer.handleNewGame).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/game/{gameID}/guess", gameServer.handleGuess).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/game/{gameID}", gameServer.handleGetGame).Methods("GET")
+
+	log.Printf("Server starting with %d words loaded", len(wordList))
+	log.Fatal(http.ListenAndServe(":8080", r))
 }
