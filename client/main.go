@@ -108,6 +108,15 @@ func main() {
 	// fmt.Printf("Game created! Game ID: %s\n", gameState.ID)
 	// fmt.Printf("Round %d/%d\n", gameState.Round, gameState.MaxRounds)
 
+	// Game instructions
+	fmt.Println("\nThis is a wordle game where you need to guess a 5-letter word within certain number of rounds")
+	fmt.Println("\nEach round you type your guess and you can see a list of feedbacks based on your guesses")
+	fmt.Println("\nTry to find the right word with the clues!")
+	fmt.Println("\nHow to read feedback:")
+	fmt.Println("  \033[1;32mGREEN\033[0m: Letter is correct and in the right position")
+	fmt.Println("  \033[1;33mYELLOW\033[0m: Letter is in the word but wrong position")
+	fmt.Println("  \033[1;90mGRAY\033[0m: Letter is not in the word")
+
 	// Game loop
 	for round := 1; round <= gameState.MaxRounds; round++ {
 		fmt.Printf("\nRound %d/%d\n", round, gameState.MaxRounds)
