@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/tiggercwh/go-wordle/gameModel"
 )
 
 const maxRounds = 6
@@ -18,79 +19,28 @@ var wordList = []string{
 	"panic", "crazy", "buggy",
 }
 
-type Score int
-
-const (
-	Miss Score = iota
-	Present
-	Hit
-	Unknown = -1
-)
-
-type LetterResult struct {
-	Char  rune  `json:"char"`
-	Score Score `json:"score"`
-}
-
-type FeedbackKey struct {
-	GroupResult [5]int `json:"groupResult"`
-	Hits        int    `json:"hits"`
-	Presents    int    `json:"presents"`
-}
-
-type GameState struct {
-	ID           string           `json:"id"`
-	Round        int              `json:"round"`
-	MaxRounds    int              `json:"maxRounds"`
-	History      [][]LetterResult `json:"history"`
-	Candidates   []string         `json:"candidates"`
-	GameOver     bool             `json:"gameOver"`
-	Won          bool             `json:"won"`
-	CreatedAt    time.Time        `json:"createdAt"`
-	LastActivity time.Time        `json:"lastActivity"`
-}
-
-type GuessRequest struct {
-	Word string `json:"word"`
-}
-
-type GuessResponse struct {
-	Success   bool           `json:"success"`
-	Message   string         `json:"message"`
-	Result    []LetterResult `json:"result,omitempty"`
-	GameState *GameState     `json:"gameState,omitempty"`
-	GameOver  bool           `json:"gameOver"`
-	Won       bool           `json:"won"`
-}
-
-type NewGameResponse struct {
-	Success   bool      `json:"success"`
-	Message   string    `json:"message"`
-	GameState GameState `json:"gameState"`
-}
-
 type GameServer struct {
-	games map[string]*GameState
+	games map[string]*gameModel.GameState
 	mutex sync.RWMutex
 }
 
 func NewGameServer() *GameServer {
 	return &GameServer{
-		games: make(map[string]*GameState),
+		games: make(map[string]*gameModel.GameState),
 	}
 }
 
-func (gs *GameServer) createGame() *GameState {
-	game := &GameState{
+func (gs *GameServer) createGame() *gameModel.GameState {
+	game := &gameModel.GameState{
 		ID:           generateGameID(),
 		Round:        0,
 		MaxRounds:    maxRounds,
-		History:      make([][]LetterResult, 0),
+		History:      make([][]gameModel.LetterResult, 0),
 		Candidates:   make([]string, len(wordList)),
 		GameOver:     false,
 		Won:          false,
-		CreatedAt:    time.Now(),
-		LastActivity: time.Now(),
+		CreatedAt:    time.Now().Format(time.RFC3339),
+		LastActivity: time.Now().Format(time.RFC3339),
 	}
 	copy(game.Candidates, wordList)
 	gs.mutex.Lock()
@@ -99,17 +49,17 @@ func (gs *GameServer) createGame() *GameState {
 	return game
 }
 
-func (gs *GameServer) getGame(gameID string) (*GameState, bool) {
+func (gs *GameServer) getGame(gameID string) (*gameModel.GameState, bool) {
 	gs.mutex.RLock()
 	defer gs.mutex.RUnlock()
 	game, exists := gs.games[gameID]
 	return game, exists
 }
 
-func (gs *GameServer) updateGame(gameID string, game *GameState) {
+func (gs *GameServer) updateGame(gameID string, game *gameModel.GameState) {
 	gs.mutex.Lock()
 	defer gs.mutex.Unlock()
-	game.LastActivity = time.Now()
+	game.LastActivity = time.Now().Format(time.RFC3339)
 	gs.games[gameID] = game
 }
 
@@ -117,41 +67,41 @@ func generateGameID() string {
 	return fmt.Sprintf("game_%d", time.Now().UnixNano())
 }
 
-func scoreGuess(answer, guess string) []LetterResult {
-	res := make([]LetterResult, 5)
+func scoreGuess(answer, guess string) []gameModel.LetterResult {
+	res := make([]gameModel.LetterResult, 5)
 	answerCounts := make(map[byte]int)
 	for i := 0; i < 5; i++ {
 		if guess[i] == answer[i] {
-			res[i] = LetterResult{Char: rune(guess[i]), Score: Hit}
+			res[i] = gameModel.LetterResult{Char: rune(guess[i]), Score: gameModel.Hit}
 		} else {
 			answerCounts[answer[i]]++
 		}
 	}
 	for i := 0; i < 5; i++ {
-		if res[i].Score == Hit {
+		if res[i].Score == gameModel.Hit {
 			continue
 		}
 		if answerCounts[guess[i]] > 0 {
-			res[i] = LetterResult{Char: rune(guess[i]), Score: Present}
+			res[i] = gameModel.LetterResult{Char: rune(guess[i]), Score: gameModel.Present}
 			answerCounts[guess[i]]--
 		} else {
-			res[i] = LetterResult{Char: rune(guess[i]), Score: Miss}
+			res[i] = gameModel.LetterResult{Char: rune(guess[i]), Score: gameModel.Miss}
 		}
 	}
 	return res
 }
 
-func summarizeResult(result []LetterResult) FeedbackKey {
-	var key FeedbackKey
+func summarizeResult(result []gameModel.LetterResult) gameModel.FeedbackKey {
+	var key gameModel.FeedbackKey
 	for i, r := range result {
 		switch r.Score {
-		case Hit:
+		case gameModel.Hit:
 			key.GroupResult[i] = 2
 			key.Hits++
-		case Present:
+		case gameModel.Present:
 			key.GroupResult[i] = 1
 			key.Presents++
-		case Miss:
+		case gameModel.Miss:
 			key.GroupResult[i] = 0
 		}
 	}
@@ -172,7 +122,7 @@ func (gs *GameServer) handleNewGame(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	game := gs.createGame()
-	response := NewGameResponse{
+	response := gameModel.NewGameResponse{
 		Success:   true,
 		Message:   "New game created successfully",
 		GameState: *game,
@@ -193,7 +143,7 @@ func (gs *GameServer) handleGuess(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	var req GuessRequest
+	var req gameModel.GuessRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
@@ -206,7 +156,7 @@ func (gs *GameServer) handleGuess(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if game.GameOver {
-		response := GuessResponse{
+		response := gameModel.GuessResponse{
 			Success:  false,
 			Message:  "Game is already over",
 			GameOver: true,
@@ -216,7 +166,7 @@ func (gs *GameServer) handleGuess(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(req.Word) != 5 {
-		response := GuessResponse{
+		response := gameModel.GuessResponse{
 			Success: false,
 			Message: "Please enter a valid 5-letter word",
 		}
@@ -230,15 +180,15 @@ func (gs *GameServer) handleGuess(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	game.Round++
-	grouped := make(map[FeedbackKey][]string)
-	resultMap := make(map[FeedbackKey][]LetterResult)
+	grouped := make(map[gameModel.FeedbackKey][]string)
+	resultMap := make(map[gameModel.FeedbackKey][]gameModel.LetterResult)
 	for _, cand := range game.Candidates {
 		result := scoreGuess(cand, guess)
 		fb := summarizeResult(result)
 		grouped[fb] = append(grouped[fb], cand)
 		resultMap[fb] = result
 	}
-	var bestFB FeedbackKey
+	var bestFB gameModel.FeedbackKey
 	bestScore := [2]int{6, 6}
 	for fb := range grouped {
 		// We use <= for Presents just to match the result of example 2 provided
@@ -256,7 +206,7 @@ func (gs *GameServer) handleGuess(w http.ResponseWriter, r *http.Request) {
 		game.GameOver = true
 	}
 	gs.updateGame(gameID, game)
-	response := GuessResponse{
+	response := gameModel.GuessResponse{
 		Success:   true,
 		Message:   "Guess processed successfully",
 		Result:    result,
@@ -286,7 +236,6 @@ func main() {
 	router.HandleFunc("/api/game/new", server.handleNewGame).Methods("POST", "OPTIONS")
 	router.HandleFunc("/api/game/{gameID}/guess", server.handleGuess).Methods("POST", "OPTIONS")
 	router.HandleFunc("/api/game/{gameID}", server.handleGetGame).Methods("GET")
-
 	fmt.Println("Wordle server listening on http://localhost:8080")
 	log.Fatal(http.ListenAndServe(":8080", router))
 }

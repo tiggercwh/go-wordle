@@ -10,55 +10,12 @@ import (
 	"os"
 	"strings"
 	"unicode"
+
+	"github.com/tiggercwh/go-wordle/gameModel"
 )
 
 const maxRounds = 6
 const serverURL = "http://localhost:8080/api"
-
-type Score int
-
-const (
-	Miss Score = iota
-	Present
-	Hit
-	Unknown = -1
-)
-
-type LetterResult struct {
-	Char  rune  `json:"char"`
-	Score Score `json:"score"`
-}
-
-type GameState struct {
-	ID           string           `json:"id"`
-	Round        int              `json:"round"`
-	MaxRounds    int              `json:"maxRounds"`
-	History      [][]LetterResult `json:"history"`
-	Candidates   []string         `json:"candidates"`
-	GameOver     bool             `json:"gameOver"`
-	Won          bool             `json:"won"`
-	CreatedAt    string           `json:"createdAt"`
-	LastActivity string           `json:"lastActivity"`
-}
-
-type GuessRequest struct {
-	Word string `json:"word"`
-}
-
-type GuessResponse struct {
-	Success   bool           `json:"success"`
-	Message   string         `json:"message"`
-	Result    []LetterResult `json:"result,omitempty"`
-	GameState *GameState     `json:"gameState,omitempty"`
-	GameOver  bool           `json:"gameOver"`
-	Won       bool           `json:"won"`
-}
-
-type NewGameResponse struct {
-	Success   bool      `json:"success"`
-	Message   string    `json:"message"`
-	GameState GameState `json:"gameState"`
-}
 
 func makeRequest(method, url string, body interface{}) ([]byte, error) {
 	var reqBody io.Reader
@@ -87,13 +44,13 @@ func makeRequest(method, url string, body interface{}) ([]byte, error) {
 	return io.ReadAll(resp.Body)
 }
 
-func createNewGame() (*GameState, error) {
+func createNewGame() (*gameModel.GameState, error) {
 	respBody, err := makeRequest("POST", serverURL+"/game/new", nil)
 	if err != nil {
 		return nil, err
 	}
 
-	var response NewGameResponse
+	var response gameModel.NewGameResponse
 	if err := json.Unmarshal(respBody, &response); err != nil {
 		return nil, err
 	}
@@ -105,14 +62,14 @@ func createNewGame() (*GameState, error) {
 	return &response.GameState, nil
 }
 
-func submitGuess(gameID, word string) (*GuessResponse, error) {
-	request := GuessRequest{Word: word}
+func submitGuess(gameID, word string) (*gameModel.GuessResponse, error) {
+	request := gameModel.GuessRequest{Word: word}
 	respBody, err := makeRequest("POST", fmt.Sprintf("%s/game/%s/guess", serverURL, gameID), request)
 	if err != nil {
 		return nil, err
 	}
 
-	var response GuessResponse
+	var response gameModel.GuessResponse
 	if err := json.Unmarshal(respBody, &response); err != nil {
 		return nil, err
 	}
@@ -120,14 +77,14 @@ func submitGuess(gameID, word string) (*GuessResponse, error) {
 	return &response, nil
 }
 
-func printGuessResult(result []LetterResult) {
+func printGuessResult(result []gameModel.LetterResult) {
 	for _, r := range result {
 		switch r.Score {
-		case Hit:
+		case gameModel.Hit:
 			fmt.Printf("\033[1;32m%c\033[0m", unicode.ToUpper(r.Char)) // green
-		case Present:
+		case gameModel.Present:
 			fmt.Printf("\033[1;33m%c\033[0m", unicode.ToUpper(r.Char)) // yellow
-		case Miss:
+		case gameModel.Miss:
 			fmt.Printf("\033[1;90m%c\033[0m", unicode.ToUpper(r.Char)) // dim grey
 		}
 	}
